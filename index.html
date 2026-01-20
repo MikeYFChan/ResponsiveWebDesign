@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <title>小學生數學測試</title>
+  <style>
+    body {
+      font-family: Arial, 'PingFang HK', sans-serif;
+      background: #f0f0f0;
+      text-align: center;
+      padding: 20px;
+    }
+    .box {
+      max-width: 400px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    input, button {
+      font-size: 18px;
+      margin-top: 10px;
+      padding: 5px 10px;
+      text-align: center;
+    }
+    hr { margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>小學生數學測試 ✏️</h2>
+
+    <div>
+      小朋友名字：<br>
+      <input id="childName" placeholder="例如：洛洛">
+    </div>
+
+    <hr>
+
+    <div id="question"></div>
+
+    <input type="number" id="answer">
+    <br>
+    <button onclick="checkAnswer()">提交</button>
+
+    <div id="result"></div>
+  </div>
+
+  <!-- Firebase CDN -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // 🔑 Firebase 設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyD9q7BqgQ4fyDfd1dIRJNB9z88PO3EnZDk",
+      authDomain: "kids-test-fc074.firebaseapp.com",
+      projectId: "kids-test-fc074",
+      storageBucket: "kids-test-fc074.firebasestorage.app",
+      messagingSenderId: "114800822327",
+      appId: "1:114800822327:web:b6aad8ec86b91ac1a497b2"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // 🧮 題目邏輯
+    let num1, num2, correctAnswer, questionText;
+
+    function newQuestion() {
+      num1 = Math.floor(Math.random() * 10) + 1;
+      num2 = Math.floor(Math.random() * 10) + 1;
+
+      if (Math.random() > 0.5) {
+        correctAnswer = num1 + num2;
+        questionText = `${num1} + ${num2} = ?`;
+      } else {
+        if (num1 < num2) [num1, num2] = [num2, num1];
+        correctAnswer = num1 - num2;
+        questionText = `${num1} − ${num2} = ?`;
+      }
+
+      document.getElementById("question").innerText = questionText;
+      document.getElementById("answer").value = "";
+      document.getElementById("result").innerText = "";
+    }
+
+    // ✅ 檢查答案 + 記錄 Firestore
+    function checkAnswer() {
+      const childName = document.getElementById("childName").value.trim();
+      const userAnswer = Number(document.getElementById("answer").value);
+
+      if (!childName) {
+        alert("請先輸入小朋友名字");
+        return;
+      }
+
+      const isCorrect = userAnswer === correctAnswer;
+      document.getElementById("result").innerText = isCorrect ? "✅ 答對！" : "❌ 答錯";
+
+      db.collection("question_logs").add({
+        childName: childName,
+        question: questionText,
+        correctAnswer: correctAnswer,
+        userAnswer: userAnswer,
+        isCorrect: isCorrect,
+        createdAt: new Date()
+      });
+
+      setTimeout(newQuestion, 800);
+    }
+
+    newQuestion();
+  </script>
+</body>
+</html>
