@@ -1,116 +1,151 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>小學生數學測試</title>
+  <title>Primary Math Quiz</title>
   <style>
-    body {
-      font-family: Arial, 'PingFang HK', sans-serif;
-      background: #f0f0f0;
-      text-align: center;
-      padding: 20px;
-    }
-    .box {
-      max-width: 400px;
-      margin: 0 auto;
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    input, button {
-      font-size: 18px;
-      margin-top: 10px;
-      padding: 5px 10px;
-      text-align: center;
-    }
-    hr { margin: 20px 0; }
+    body { font-family: Arial, sans-serif; text-align:center; background:#f0f0f0; padding:20px; }
+    .box { max-width:500px; margin:20px auto; background:#fff; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+    input, button, select { font-size:18px; margin-top:10px; padding:5px 10px; text-align:center; }
+    hr { margin:20px 0; }
+    #question, #result, #score { font-size:20px; margin:10px 0; }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h2>小學生數學測試 ✏️</h2>
 
-    <div>
-      小朋友名字：<br>
-      <input id="childName" placeholder="例如：洛洛">
-    </div>
-
-    <hr>
-
-    <div id="question"></div>
-
-    <input type="number" id="answer">
-    <br>
-    <button onclick="checkAnswer()">提交</button>
-
-    <div id="result"></div>
+<!-- Start Page -->
+<div class="box" id="startPage">
+  <h2>Primary Math Quiz ✏️</h2>
+  <div>
+    Student Name:<br>
+    <input id="studentName" placeholder="e.g. John">
   </div>
+  <div>
+    Select Year:<br>
+    <select id="yearSelect">
+      <option value="">--Select Year--</option>
+      <option value="Year 3">Year 3</option>
+      <option value="Year 6">Year 6</option>
+    </select>
+  </div>
+  <button onclick="startTest()">Start Quiz</button>
+</div>
 
-  <!-- Firebase CDN -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<!-- Quiz Page -->
+<div class="box" id="quizPage" style="display:none;">
+  <div id="question"></div>
+  <input type="number" id="answerInput" placeholder="Your answer">
+  <br>
+  <button onclick="submitAnswer()">Submit</button>
+  <div id="result"></div>
+</div>
 
-  <script>
-    // 🔑 Firebase 設定
-    const firebaseConfig = {
-      apiKey: "",
-      authDomain: "kids-test-fc074.firebaseapp.com",
-      projectId: "kids-test-fc074",
-      storageBucket: "kids-test-fc074.firebasestorage.app",
-      messagingSenderId: "114800822327",
-      appId: "1:114800822327:web:b6aad8ec86b91ac1a497b2"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+<!-- Score Page -->
+<div class="box" id="scorePage" style="display:none;">
+  <h2>Quiz Completed ✅</h2>
+  <div id="score"></div>
+  <button onclick="restartQuiz()">Restart Quiz</button>
+</div>
 
-    // 🧮 題目邏輯
-    let num1, num2, correctAnswer, questionText;
+<!-- Firebase CDN -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-    function newQuestion() {
-      num1 = Math.floor(Math.random() * 10) + 1;
-      num2 = Math.floor(Math.random() * 10) + 1;
+<script>
+  // 🔑 Firebase configuration
+  const firebaseConfig = {
+    apiKey: "",
+    authDomain: "kids-test-fc074.firebaseapp.com",
+    projectId: "kids-test-fc074",
+    storageBucket: "kids-test-fc074.firebasestorage.app",
+    messagingSenderId: "114800822327",
+    appId: "1:114800822327:web:b6aad8ec86b91ac1a497b2"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-      if (Math.random() > 0.5) {
-        correctAnswer = num1 + num2;
-        questionText = `${num1} + ${num2} = ?`;
-      } else {
-        if (num1 < num2) [num1, num2] = [num2, num1];
-        correctAnswer = num1 - num2;
-        questionText = `${num1} − ${num2} = ?`;
-      }
+  // Questions for Year 3 and Year 6
+  const questions = {
+    "Year 3": [
+      {q:"5 + 3 =", a:8},
+      {q:"10 - 4 =", a:6},
+      {q:"2 × 3 =", a:6},
+      {q:"12 ÷ 3 =", a:4},
+      {q:"7 + 6 =", a:13}
+    ],
+    "Year 6": [
+      {q:"25 + 17 =", a:42},
+      {q:"56 - 29 =", a:27},
+      {q:"8 × 7 =", a:56},
+      {q:"81 ÷ 9 =", a:9},
+      {q:"15 × 4 =", a:60}
+    ]
+  };
 
-      document.getElementById("question").innerText = questionText;
-      document.getElementById("answer").value = "";
-      document.getElementById("result").innerText = "";
+  let studentName = "";
+  let selectedYear = "";
+  let currentQuestionIndex = 0;
+  let score = 0;
+
+  function startTest(){
+    studentName = document.getElementById("studentName").value.trim();
+    selectedYear = document.getElementById("yearSelect").value;
+    if(!studentName || !selectedYear){
+      alert("Please enter student name and select year.");
+      return;
     }
+    document.getElementById("startPage").style.display = "none";
+    document.getElementById("quizPage").style.display = "block";
+    currentQuestionIndex = 0;
+    score = 0;
+    showQuestion();
+  }
 
-    // ✅ 檢查答案 + 記錄 Firestore
-    function checkAnswer() {
-      const childName = document.getElementById("childName").value.trim();
-      const userAnswer = Number(document.getElementById("answer").value);
+  function showQuestion(){
+    const q = questions[selectedYear][currentQuestionIndex];
+    document.getElementById("question").innerText = "Question " + (currentQuestionIndex+1) + ": " + q.q;
+    document.getElementById("answerInput").value = "";
+    document.getElementById("result").innerText = "";
+  }
 
-      if (!childName) {
-        alert("請先輸入小朋友名字");
-        return;
-      }
+  function submitAnswer(){
+    const q = questions[selectedYear][currentQuestionIndex];
+    const userAnswer = Number(document.getElementById("answerInput").value);
+    const isCorrect = userAnswer === q.a;
+    document.getElementById("result").innerText = isCorrect ? "✅ Correct!" : "❌ Wrong";
+    if(isCorrect) score++;
 
-      const isCorrect = userAnswer === correctAnswer;
-      document.getElementById("result").innerText = isCorrect ? "✅ 答對！" : "❌ 答錯";
+    // Save to Firestore
+    db.collection("student_scores").add({
+      studentName: studentName,
+      year: selectedYear,
+      question: q.q,
+      correctAnswer: q.a,
+      studentAnswer: userAnswer,
+      isCorrect: isCorrect,
+      createdAt: new Date()
+    });
 
-      db.collection("question_logs").add({
-        childName: childName,
-        question: questionText,
-        correctAnswer: correctAnswer,
-        userAnswer: userAnswer,
-        isCorrect: isCorrect,
-        createdAt: new Date()
-      });
-
-      setTimeout(newQuestion, 800);
+    currentQuestionIndex++;
+    if(currentQuestionIndex < questions[selectedYear].length){
+      setTimeout(showQuestion, 800);
+    } else {
+      setTimeout(showScore, 800);
     }
+  }
 
-    newQuestion();
-  </script>
+  function showScore(){
+    document.getElementById("quizPage").style.display = "none";
+    document.getElementById("scorePage").style.display = "block";
+    document.getElementById("score").innerText = "Total Score: " + score + " / " + questions[selectedYear].length;
+  }
+
+  function restartQuiz(){
+    document.getElementById("scorePage").style.display = "none";
+    document.getElementById("startPage").style.display = "block";
+    document.getElementById("studentName").value = "";
+    document.getElementById("yearSelect").value = "";
+  }
+</script>
 </body>
 </html>
